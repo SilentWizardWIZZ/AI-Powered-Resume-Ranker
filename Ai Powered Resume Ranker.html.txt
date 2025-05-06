@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>AI-Powered Resume Ranker with PDF Upload</title>
+<style>
+  /* Reset & base */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f3f7;
+    color: #222;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+  }
+
+  h1 {
+    font-weight: 900;
+    font-size: 1.8rem;
+    color: #334e68;
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+
+  .container {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+    max-width: 600px;
+    width: 100%;
+    max-height: 600px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.3rem;
+    color: #1e293b;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+    border-radius: 8px;
+    border: 2px solid #cbd5e1;
+    padding: 0.75rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 0.95rem;
+    transition: border-color 0.3s ease;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
+  }
+
+  button {
+    margin-top: 1.25rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    padding: 0.7rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    width: 100%;
+  }
+  button:hover:not(:disabled) {
+    background: #2563eb;
+  }
+  button:disabled {
+    background: #94a3b8;
+    cursor: default;
+  }
+
+  .upload-area {
+    margin-top: 1rem;
+    border: 2px dashed #3b82f6;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    color: #3b82f6;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.3s ease;
+  }
+  .upload-area.dragover {
+    background-color: #dbeafe;
+  }
+  input[type="file"] {
+    display: none;
+  }
+
+  .file-list {
+    margin-top: 0.5rem;
+    max-height: 120px;
+    overflow-y: auto;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    background: #f9fafb;
+    color: #344054;
+  }
+  .file-list-item {
+    margin-bottom: 0.25rem;
+  }
+
+  .results {
+    margin-top: 1.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .resume-score {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.8rem 0;
+    font-weight: 600;
+    color: #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .resume-score:last-child {
+    border-bottom: none;
+  }
+  .score-value {
+    background: #3b82f6;
+    color: white;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    min-width: 40px;
+    text-align: center;
+  }
+
+  .highlight {
+    background-color: #fde68a;
+    font-weight: 700;
+  }
+
+  pre {
+    margin: 0.5rem 0 1rem 0;
+    background-color: #f9fafb;
+    padding: 0.5rem;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    max-height: 90px;
+    overflow-y: auto;
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 400px) {
+    .container {
+      padding: 1rem;
+      max-width: 100%;
+      max-height: 600px;
+    }
+    h1 {
+      font-size: 1.4rem;
+    }
+    button {
+      font-size: 0.9rem;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>AI-Powered Resume Ranker</h1>
+  <div class="container" role="main" aria-live="polite">
+    <label for="jobDesc">Job Description</label>
+    <textarea id="jobDesc" placeholder="Paste your job description here..." aria-describedby="jobDescHint"></textarea>
+    <small id="jobDescHint" style="color:#64748b;">Enter the job description text to match resumes against.</small>
+
+    <label for="fileInput" style="margin-top:1rem;">Upload Resume PDF Files</label>
+    <div id="uploadArea" class="upload-area" tabindex="0" aria-describedby="uploadDesc">
+      Drag & Drop PDF files here or click to select
+    </div>
+    <input type="file" id="fileInput" accept=".pdf" multiple aria-hidden="true" />
+
+    <small id="uploadDesc" style="color:#64748b;">
+      Upload one or more PDF resumes. The app will extract text and rank them.
+    </small>
+
+    <div id="fileList" class="file-list" aria-live="polite" aria-atomic="true" tabindex="0" aria-label="Uploaded files list">
+      No files uploaded yet.
+    </div>
+
+    <button id="rankButton" disabled>Rank Resumes</button>
+
+    <div class="results" id="results" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.9.179/build/pdf.min.js"></script>
+<script>
+  (function() {
+    const jobDescInput = document.getElementById('jobDesc');
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileListDiv = document.getElementById('fileList');
+    const rankButton = document.getElementById('rankButton');
+    const resultsDiv = document.getElementById('results');
+
+    // Store uploaded resumes as objects: {name, text}
+    let uploadedResumes = [];
+
+    // Utils
+    function tokenize(text) {
+      return text
+        .toLowerCase()
+        .split(/\W+/)
+        .filter(w => w.length > 2);
+    }
+    function getFrequencyMap(words) {
+      const freq = {};
+      words.forEach(word => {
+        freq[word] = (freq[word] || 0) + 1;
+      });
+      return freq;
+    }
+    function computeScore(jobFreq, resumeFreq) {
+      let score = 0;
+      for (const word in resumeFreq) {
+        if (jobFreq[word]) {
+          score += Math.min(jobFreq[word], resumeFreq[word]);
+        }
+      }
+      return score;
+    }
+    function highlightMatches(text, keywords) {
+      if (!keywords.size) return text;
+      const regex = new RegExp('\\b(' + Array.from(keywords).join('|') + ')\\b', 'gi');
+      return text.replace(regex, match => `<span class="highlight">${match}</span>`);
+    }
+
+    // Render file list
+    function updateFileList() {
+      if (uploadedResumes.length === 0) {
+        fileListDiv.textContent = 'No files uploaded yet.';
+        return;
+      }
+      fileListDiv.innerHTML = '';
+      uploadedResumes.forEach((res, i) => {
+        const div = document.createElement('div');
+        div.className = 'file-list-item';
+        div.textContent = res.name;
+        fileListDiv.appendChild(div);
+      });
+    }
+
+    function enableRankButtonIfReady() {
+      rankButton.disabled = !(jobDescInput.value.trim() && uploadedResumes.length > 0);
+    }
+
+    // Extract text from PDF file using pdf.js
+    async function extractTextFromPDF(file) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        let fullText = '';
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          fullText += pageText + '\n';
+        }
+        return fullText;
+      } catch (e) {
+        console.error('Error extracting PDF text', e);
+        return '';
+      }
+    }
+
+    // Handle files added (from dialog or drag drop)
+    async function handleFiles(files) {
+      // Clear previous results and resumes
+      resultsDiv.innerHTML = '';
+      const newFiles = Array.from(files).filter(f => f.type === 'application/pdf');
+      if (newFiles.length === 0) {
+        alert('Please upload valid PDF files only.');
+        return;
+      }
+
+      rankButton.disabled = true;
+
+      let filesProcessed = 0;
+      for (const file of newFiles) {
+        const text = await extractTextFromPDF(file);
+        if (text.trim()) {
+          uploadedResumes.push({name: file.name, text});
+        } else {
+          alert(`Could not extract text from file: ${file.name}`);
+        }
+        filesProcessed++;
+      }
+      updateFileList();
+      enableRankButtonIfReady();
+    }
+
+    // Drag & Drop handlers
+    uploadArea.addEventListener('dragover', e => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    uploadArea.addEventListener('dragleave', e => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+    });
+    uploadArea.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        handleFiles(e.dataTransfer.files);
+      }
+    });
+
+    // Click on upload area triggers file input
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // Keyboard accessibility to click on Enter or Space
+    uploadArea.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    // File input change event
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        handleFiles(fileInput.files);
+      }
+    });
+
+    // Update button enable when job description changes
+    jobDescInput.addEventListener('input', enableRankButtonIfReady);
+
+    // Ranking function
+    function rankResumes(jobDesc, resumes) {
+      resultsDiv.innerHTML = '';
+      if (!jobDesc.trim() || resumes.length === 0) return;
+
+      const jobWords = tokenize(jobDesc);
+      const jobFreq = getFrequencyMap(jobWords);
+      const jobKeysSet = new Set(Object.keys(jobFreq));
+
+      const scoredResumes = resumes.map(({name, text}, idx) => {
+        const resumeWords = tokenize(text);
+        const resumeFreq = getFrequencyMap(resumeWords);
+        const score = computeScore(jobFreq, resumeFreq);
+
+        const matchedKeywords = new Set();
+        for (const w of resumeWords) {
+          if (jobKeysSet.has(w)) matchedKeywords.add(w);
+        }
+
+        const highlightedText = highlightMatches(text, matchedKeywords);
+
+        return {
+          index: idx + 1,
+          name,
+          score,
+          highlightedText
+        };
+      });
+
+      scoredResumes.sort((a, b) => b.score - a.score);
+
+      if (scoredResumes.length === 0) {
+        resultsDiv.innerHTML = '<p>No resumes found to rank.</p>';
+        return;
+      }
+
+      const list = document.createElement('div');
+      scoredResumes.forEach(resume => {
+        const resumeBlock = document.createElement('div');
+        resumeBlock.className = 'resume-score';
+
+        const title = document.createElement('div');
+        title.textContent = resume.name;
+
+        const scoreSpan = document.createElement('span');
+        scoreSpan.className = 'score-value';
+        scoreSpan.textContent = resume.score;
+
+        resumeBlock.appendChild(title);
+        resumeBlock.appendChild(scoreSpan);
+
+        const preview = document.createElement('pre');
+        preview.innerHTML = resume.highlightedText;
+
+        list.appendChild(resumeBlock);
+        list.appendChild(preview);
+      });
+      resultsDiv.appendChild(list);
+    }
+
+    rankButton.addEventListener('click', () => {
+      rankResumes(jobDescInput.value, uploadedResumes);
+    });
+
+  })();
+</script>
+</body>
+</html>
+</content>
+</create_file>
